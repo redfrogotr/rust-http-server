@@ -1,10 +1,11 @@
 use std::{
     fs,
     io::{BufRead, BufReader, Write},
-    net::{TcpListener, TcpStream},
+    net::{TcpListener, TcpStream}, thread, time::Duration,
 };
 
-use rust_http_server::ThreadPool;
+use rust_http_server::thread_pool_util::thread_pool::ThreadPool;
+
 
 fn main() {
     let addr = "127.0.0.1:7878";
@@ -24,6 +25,10 @@ fn handle_connect(mut stream: TcpStream) {
     let next = buf_reader.lines().next().unwrap().unwrap();
     let (response_code, response_file_path) = match next.as_str() {
         "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "html/hello.html"),
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(5));
+            ("HTTP/1.1 200 OK", "html/hello.html")
+        },
         _ => ("HTTP/1.1 404 NOT FOUND", "html/404.html"),
     };
 
