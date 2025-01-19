@@ -5,7 +5,7 @@ use super::{worker::Worker, Job};
 pub struct ThreadPool {
     // You know `()` is very important, we can't think out it easily.
     threads: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {
@@ -24,7 +24,7 @@ impl ThreadPool {
 
         ThreadPool {
             threads,
-            sender
+            sender: Some(sender)
         }
     }
 
@@ -32,6 +32,27 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
-        self.sender.send(Box::new(f)).unwrap();
+        if let Some(sender) = &self.sender {
+            sender.send(Box::new(f)).unwrap();
+        }
+    }
+}
+
+impl Drop for ThreadPool {
+
+    fn drop(&mut self) {
+        println!("Prepare to drop ThreadPool!");
+
+        drop(self.sender.take());
+
+        for worker in &mut self.threads {
+            let id = worker.id.clone();
+            println!("We will shutdown {id}");
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+        println!("Drop ThreadPool finish!");
     }
 }
